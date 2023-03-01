@@ -1,0 +1,46 @@
+---
+kind: pipeline
+name: amd64
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  branch:
+  - master
+  - v*
+
+steps:
+- name: build
+  image: rancher/dapper:v0.5.8
+  commands:
+  - dapper ci
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
+
+- name: publish-head
+  image: plugins/gcs
+  settings:
+    acl:
+      - allUsers:READER
+    cache_control: "public,no-cache,proxy-revalidate"
+    source: dist/artifacts
+    target: releases.rancher.com/harvester/${DRONE_BRANCH}
+    token:
+      from_secret: google_auth_key
+  when:
+    ref:
+      include:
+        - "refs/heads/master"
+        - "refs/heads/v*"
+    event:
+      - push
+      - cron
+
+volumes:
+- name: docker
+  host:
+    path: /var/run/docker.sock
+
